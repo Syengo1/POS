@@ -1,54 +1,77 @@
 // src/core/db/sync.js
 import { replicateSupabase } from 'rxdb/plugins/replication-supabase';
+import { supabase } from '../cloud/supabase'; 
 
-// We MUST accept supabaseClient as a parameter to avoid Vite Proxy bugs
-export const startBackgroundSync = (db, supabaseClient) => {
-  console.log('Starting Supabase Background Replication Engine (HTTP Polling)...');
+export const startBackgroundSync = (db) => {
+  console.log('Starting Supabase Realtime Replication Engine...');
 
-  // Strict check to ensure we have the real client, not a Vite Proxy
-  if (!supabaseClient || typeof supabaseClient.from !== 'function') {
-    console.error("CRITICAL: supabaseClient is invalid. Sync engine aborted.");
+  if (!supabase || typeof supabase.channel !== 'function') {
+    console.error("CRITICAL: supabase client is invalid or missing realtime capabilities.");
     return;
   }
 
+  // Define shared configuration using the NEW RxDB v16+ parameter names
+  const sharedConfig = {
+    client: supabase, // FIX 1: Renamed from 'supabaseClient' to 'client'
+    live: true,
+    retryTime: 5000,
+    pull: {},
+    push: {}
+  };
+
   const categorySync = replicateSupabase({
+    ...sharedConfig,
     replicationIdentifier: 'sync_categories',
     collection: db.categories,
-    supabaseClient: supabaseClient,
-    live: false, 
-    pull: {},
-    push: {}  
+    tableName: 'categories', // FIX 2: Explicitly define the Postgres table name
   });
 
   const productSync = replicateSupabase({
+    ...sharedConfig,
     replicationIdentifier: 'sync_products',
     collection: db.products,
-    supabaseClient: supabaseClient,
-    live: false, 
-    pull: {},
-    push: {}  
+    tableName: 'products', // FIX 2: Explicitly define the Postgres table name
   });
 
   const salesSync = replicateSupabase({
+    ...sharedConfig,
     replicationIdentifier: 'sync_sales',
     collection: db.sales,
-    supabaseClient: supabaseClient,
-    live: false, 
-    pull: false, // Cashiers do not pull other people's sales
-    push: {}     
+    tableName: 'sales', // FIX 2: Explicitly define the Postgres table name
   });
 
-  // Force HTTP Polling every 3 seconds to bypass browser extension blocks
-  setInterval(() => {
-    if (!productSync.isStopped()) productSync.reSync();
-    if (!categorySync.isStopped()) categorySync.reSync();
-    if (!salesSync.isStopped()) salesSync.reSync();
-  }, 3000);
 
-  // Error Logging
-  productSync.error$.subscribe(err => console.error('Product Sync Error:', err));
-  categorySync.error$.subscribe(err => console.error('Category Sync Error:', err));
-  salesSync.error$.subscribe(err => console.error('Sales Sync Error:', err));
+  const mpesaSync = replicateSupabase({
+  ...sharedConfig,
+  replicationIdentifier: 'sync_mpesa_transactions',
+  collection: db.mpesa_transactions,
+  tableName: 'mpesa_transactions',
+  pull: {}, // Pull updates so the UI knows when a payment completes
+  push: {}  // Push STK requests up to Supabase
+});
 
-  return { categorySync, productSync, salesSync };
+  // -------------------------------------------------------------------------
+  // TELEMETRY & ERROR HANDLING
+  // -------------------------------------------------------------------------
+  const logSyncError = (module, err) => {
+    console.warn(`[Sync Warning] ${module}:`, err.message || 'Network disconnected');
+  };
+
+  productSync.error$.subscribe(err => logSyncError('Products', err));
+  categorySync.error$.subscribe(err => logSyncError('Categories', err));
+  salesSync.error$.subscribe(err => logSyncError('Sales', err));
+
+  return { 
+    categorySync, 
+    productSync, 
+    salesSync,
+    mpesaSync,
+    destroy: () => {
+      console.log('Shutting down replication engine...');
+      categorySync.cancel();
+      productSync.cancel();
+      salesSync.cancel();
+      mpesaSync.cancel();
+    }
+  };
 };

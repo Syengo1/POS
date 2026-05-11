@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import PosView from './pages/PosView';
 import AdminLayout from './layouts/AdminLayout';
 import InventoryManager from './pages/admin/InventoryManager';
+import SalesReport from './pages/admin/SalesReport';
 
 export default function App() {
   return (
@@ -20,7 +21,7 @@ export default function App() {
           
           <Route path="inventory" element={<InventoryManager />} />
           {/* Future Routes: <Route path="promotions" element={<Promotions />} /> */}
-          {/* Future Routes: <Route path="reports" element={<ZReports />} /> */}
+          <Route path="reports" element={<SalesReport />} />
         </Route>
 
         {/* 404 Fallback */}
