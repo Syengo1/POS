@@ -15,10 +15,10 @@ export default defineConfig({
         name: "De' Lica POS System",
         short_name: "De' Lica POS",
         description: 'Enterprise Offline-First Point of Sale',
-        theme_color: '#0a0a0a', // Matches your neutral-950 UI
+        theme_color: '#0a0a0a', 
         background_color: '#0a0a0a',
-        display: 'standalone', // This hides the browser UI (URL bar, tabs)
-        orientation: 'landscape', // Force landscape for POS tablets
+        display: 'standalone', 
+        orientation: 'landscape', 
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -34,18 +34,42 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // Cache the UI shell heavily
+        // Override default 2MB limit to 10MB to allow heavy SVGs to cache
+        maximumFileSizeToCacheInBytes: 10000000,
+        
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        // CRITICAL: Tell Workbox to ignore Supabase API calls. 
-        // RxDB handles our data offline, Workbox only handles the UI!
+        // Prevent Workbox from intercepting Supabase network calls
         navigateFallbackDenylist: [/^\/rest\/v1/, /^\/functions\/v1/, /^\/realtime/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/gzsckurvqzmrwfufbuid\.supabase\.co\/.*/i,
-            handler: 'NetworkOnly', // Never cache Supabase network requests in the Service Worker
+            handler: 'NetworkOnly', 
           }
         ]
       }
     })
-  ]
+  ],
+  
+  build: {
+    chunkSizeWarningLimit: 1000, 
+    rollupOptions: {
+      output: {
+        // FIXED: Vite 8 / Rolldown compliant manualChunks function
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'react-vendor';
+            }
+            if (id.includes('rxdb') || id.includes('rxjs') || id.includes('@supabase')) {
+              return 'database-vendor';
+            }
+            if (id.includes('framer-motion') || id.includes('lucide-react') || id.includes('zustand')) {
+              return 'ui-vendor';
+            }
+            return 'vendor'; // Fallback for all other libraries
+          }
+        }
+      }
+    }
+  }
 });
