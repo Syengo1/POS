@@ -139,3 +139,20 @@ export const inventoryLedgerSchema = {
   },
   required: ['id', 'product_id', 'change_amount', 'new_stock', 'reason', 'timestamp', '_deleted']
 };
+
+export const employeeSchema = {
+  title: 'employee schema',
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 100 },
+    name: { type: 'string' },
+    role: { type: 'string' }, // 'ADMIN' or 'CASHIER'
+    pin_code: { type: 'string' }, // 4 to 6 digit PIN
+    is_active: { type: 'boolean', default: true },
+    updated_at: { type: 'number' },
+    _deleted: { type: 'boolean', default: false }
+  },
+  required: ['id', 'name', 'role', 'pin_code', 'is_active', '_deleted']
+};

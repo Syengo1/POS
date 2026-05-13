@@ -39,6 +39,15 @@ export const startBackgroundSync = (db) => {
   });
   categorySync.error$.subscribe(err => logSyncError('Categories', err));
 
+  const employeeSync = replicateSupabase({
+  ...sharedConfig,
+  replicationIdentifier: 'sync_employees',
+  collection: db.employees,
+  tableName: 'employees',
+  pull: {}, push: {}
+});
+employeeSync.error$.subscribe(err => logSyncError('Employees', err));
+
   productSync = replicateSupabase({
     ...sharedConfig,
     replicationIdentifier: 'sync_products',
@@ -143,6 +152,7 @@ export const startBackgroundSync = (db) => {
       if (mpesaSync) mpesaSync.cancel();
       if (ledgerSync) ledgerSync.cancel();
       if (promotionSync) promotionSync.cancel();
+      if (employeeSync) employeeSync.cancel();
     }
   };
 };

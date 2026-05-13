@@ -5,7 +5,7 @@ import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
-import { productSchema, saleSchema, categorySchema, promotionSchema, mpesaTransactionSchema, inventoryLedgerSchema } from './schema';
+import { productSchema, saleSchema, categorySchema, promotionSchema, mpesaTransactionSchema, inventoryLedgerSchema, employeeSchema } from './schema';
 
 import { startBackgroundSync } from './sync';
 
@@ -34,7 +34,8 @@ const createDB = async () => {
       products: { schema: productSchema },
       sales: { schema: saleSchema },
       mpesa_transactions: { schema: mpesaTransactionSchema },
-      inventory_ledger: { schema: inventoryLedgerSchema }
+      inventory_ledger: { schema: inventoryLedgerSchema },
+      employees: { schema: employeeSchema }
     });
 
     // ---------------------------------------------------------
