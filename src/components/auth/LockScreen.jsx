@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Lock, Unlock, X, Download } from 'lucide-react';
 import { getDB } from '../../core/db/database';
 import { useStore } from '../../store/useStore';
-import { usePwaInstall } from '../../hooks/usePWAInstall';
+import { usePwaInstall } from '../../hooks/usePwaInstall';
 
 export default function LockScreen() {
   const [pin, setPin] = useState('');
@@ -92,7 +92,7 @@ export default function LockScreen() {
           </button>
         </div>
       )}
-      
+
     </div>
   );
 }
