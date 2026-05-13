@@ -72,9 +72,16 @@ const createDB = async () => {
   }
 };
 
+let dbPromise = null;
+
 export const getDB = () => {
-  if (!window.__pos_db_promise) {
-    window.__pos_db_promise = createDB();
+  if (!dbPromise) {
+    dbPromise = createDB().catch(err => {
+      // If initialization fails, wipe the promise so the app can try again
+      dbPromise = null; 
+      console.error("Failed to initialize database:", err);
+      throw err;
+    });
   }
-  return window.__pos_db_promise;
+  return dbPromise;
 };
