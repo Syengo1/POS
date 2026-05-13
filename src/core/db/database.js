@@ -1,5 +1,5 @@
 // src/core/db/database.js
-import { createRxDatabase, addRxPlugin, removeRxDatabase } from 'rxdb'; // <-- ADDED: removeRxDatabase
+import { createRxDatabase, addRxPlugin, removeRxDatabase } from 'rxdb';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
@@ -25,10 +25,12 @@ addRxPlugin(RxDBUpdatePlugin);
 addRxPlugin(RxDBQueryBuilderPlugin);
 
 const createDB = async () => {
-  console.log('Initializing RxDB Local Storage with Ajv Validation...');
+  console.log('Initializing RxDB Local Storage...');
+  let dbInstance = null; // Track the instance so we can destroy it if it crashes
   
   try {
-    const db = await createRxDatabase({
+    // Step 1: Create the instance in RAM
+    dbInstance = await createRxDatabase({
       name: 'pos_local_db',
       storage: wrappedValidateAjvStorage({
         storage: getRxStorageDexie()
@@ -36,7 +38,8 @@ const createDB = async () => {
       ignoreDuplicate: true 
     });
 
-    await db.addCollections({
+    // Step 2: Apply Schemas to Hard Drive (This is where outdated databases crash)
+    await dbInstance.addCollections({
       categories: { schema: categorySchema },
       promotions: { schema: promotionSchema },
       products: { schema: productSchema },
@@ -48,7 +51,6 @@ const createDB = async () => {
 
     // ---------------------------------------------------------
     // THE BULLETPROOF DATA SANITIZER
-    // Forces Supabase strings back into Arrays during conflicts
     // ---------------------------------------------------------
     const sanitizeProduct = (doc) => {
       if (typeof doc.promotion_ids === 'string') {
@@ -57,8 +59,8 @@ const createDB = async () => {
       if (!Array.isArray(doc.promotion_ids)) doc.promotion_ids = [];
     };
 
-    db.products.preInsert(sanitizeProduct, false);
-    db.products.preSave(sanitizeProduct, false);
+    dbInstance.products.preInsert(sanitizeProduct, false);
+    dbInstance.products.preSave(sanitizeProduct, false);
 
     const sanitizeSale = (doc) => {
       if (typeof doc.items === 'string') {
@@ -67,23 +69,27 @@ const createDB = async () => {
       if (!Array.isArray(doc.items)) doc.items = [];
     };
 
-    db.sales.preInsert(sanitizeSale, false);
-    db.sales.preSave(sanitizeSale, false);
+    dbInstance.sales.preInsert(sanitizeSale, false);
+    dbInstance.sales.preSave(sanitizeSale, false);
     // ---------------------------------------------------------
 
-    startBackgroundSync(db);
+    startBackgroundSync(dbInstance);
 
-    return db;
+    return dbInstance;
   } catch (err) {
     console.error("FATAL: Failed to initialize RxDB.", err);
-    throw err; // Throw to trigger the self-heal catch block below
+    
+    // CRITICAL FIX: Destroy the RAM instance before throwing the error 
+    // so the Self-Heal protocol doesn't trigger a DB9 crash on retry.
+    if (dbInstance) {
+      try { await dbInstance.destroy(); } catch  { /* ignore cleanup errors */ }
+    }
+    throw err; 
   }
 };
 
 // ============================================================================
 // SELF-HEALING SINGLETON PATTERN
-// Caches the Promise. If a schema update causes a fatal crash (DB9), 
-// it automatically wipes the corrupted local IndexedDB and rebuilds it.
 // ============================================================================
 let dbPromise = null;
 
@@ -92,11 +98,11 @@ export const getDB = () => {
     dbPromise = (async () => {
       try {
         return await createDB();
-      } catch (err) {
-        console.warn("⚠️ FATAL DB ERROR DETECTED. INITIATING SELF-HEAL PROTOCOL...", err);
+      } catch  {
+        console.warn("⚠️ FATAL DB ERROR DETECTED. INITIATING SELF-HEAL PROTOCOL...");
         
         try {
-          // 1. Wipe the corrupted/outdated local database completely
+          // 1. Wipe the corrupted/outdated local database completely from the hard drive
           await removeRxDatabase('pos_local_db', getRxStorageDexie());
           console.log("✅ Corrupted local storage wiped successfully.");
           
@@ -104,7 +110,7 @@ export const getDB = () => {
           return await createDB();
         } catch (recoveryErr) {
           console.error("❌ Self-Heal Failed. Database is unrecoverable:", recoveryErr);
-          dbPromise = null; // Reset so the user can manually refresh to try again
+          dbPromise = null; 
           throw recoveryErr;
         }
       }
