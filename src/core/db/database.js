@@ -1,11 +1,19 @@
 // src/core/db/database.js
-import { createRxDatabase, addRxPlugin } from 'rxdb';
+import { createRxDatabase, addRxPlugin, removeRxDatabase } from 'rxdb'; // <-- ADDED: removeRxDatabase
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
-import { productSchema, saleSchema, categorySchema, promotionSchema, mpesaTransactionSchema, inventoryLedgerSchema, employeeSchema } from './schema';
+import { 
+  productSchema, 
+  saleSchema, 
+  categorySchema, 
+  promotionSchema, 
+  mpesaTransactionSchema, 
+  inventoryLedgerSchema, 
+  employeeSchema 
+} from './schema';
 
 import { startBackgroundSync } from './sync';
 
@@ -68,20 +76,39 @@ const createDB = async () => {
     return db;
   } catch (err) {
     console.error("FATAL: Failed to initialize RxDB.", err);
-    throw err;
+    throw err; // Throw to trigger the self-heal catch block below
   }
 };
 
+// ============================================================================
+// SELF-HEALING SINGLETON PATTERN
+// Caches the Promise. If a schema update causes a fatal crash (DB9), 
+// it automatically wipes the corrupted local IndexedDB and rebuilds it.
+// ============================================================================
 let dbPromise = null;
 
 export const getDB = () => {
   if (!dbPromise) {
-    dbPromise = createDB().catch(err => {
-      // If initialization fails, wipe the promise so the app can try again
-      dbPromise = null; 
-      console.error("Failed to initialize database:", err);
-      throw err;
-    });
+    dbPromise = (async () => {
+      try {
+        return await createDB();
+      } catch (err) {
+        console.warn("⚠️ FATAL DB ERROR DETECTED. INITIATING SELF-HEAL PROTOCOL...", err);
+        
+        try {
+          // 1. Wipe the corrupted/outdated local database completely
+          await removeRxDatabase('pos_local_db', getRxStorageDexie());
+          console.log("✅ Corrupted local storage wiped successfully.");
+          
+          // 2. Try building it one more time from scratch
+          return await createDB();
+        } catch (recoveryErr) {
+          console.error("❌ Self-Heal Failed. Database is unrecoverable:", recoveryErr);
+          dbPromise = null; // Reset so the user can manually refresh to try again
+          throw recoveryErr;
+        }
+      }
+    })();
   }
   return dbPromise;
 };
