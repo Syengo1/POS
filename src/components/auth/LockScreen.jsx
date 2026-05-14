@@ -82,13 +82,13 @@ export default function LockScreen() {
           THE INSTALL BUTTON
       ========================================== */}
       {isInstallable && (
-        <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+        <div className="absolute bottom-8 left-6 flex justify-center">
           <button 
             onClick={installApp}
             className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 hover:border-amber-500/50 text-neutral-400 hover:text-amber-500 px-6 py-3 rounded-full text-sm font-bold tracking-wider uppercase transition-all shadow-lg active:scale-95"
           >
             <Download size={16} />
-            Install App to Device
+            Install
           </button>
         </div>
       )}
