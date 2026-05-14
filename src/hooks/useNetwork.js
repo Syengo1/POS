@@ -1,33 +1,49 @@
+// src/hooks/useNetwork.js
 import { useState, useEffect } from 'react';
 
 export function useNetwork() {
-  // Step 1: Set the initial state based on the browser's current status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    // Step 2: Define what happens when connection is lost
-    const handleOffline = () => {
-      console.warn("System Offline: Switched to Local-First Mode");
-      setIsOnline(false);
-    };
+    // 1. Hardware-level listeners (Triggers instantly if user toggles device Wi-Fi)
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
-    // Step 3: Define what happens when connection is restored
-    const handleOnline = () => {
-      console.log("System Online: Background Sync Resumed");
-      setIsOnline(true);
-    };
-
-    // Step 4: Tell the browser to listen for these events
-    window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
-    // Step 5: Cleanup listeners if the component unmounts
+    // 2. Active Outbound Ping (Detects "Fake Wi-Fi" where the router lost internet)
+    const pingInterval = setInterval(async () => {
+      if (!navigator.onLine) {
+        setIsOnline(false);
+        return;
+      }
+
+      try {
+        // THE PWA CACHE-BUSTER FIX:
+        // We ping an external domain that our Service Worker does not control.
+        // 'no-cors' mode guarantees zero console security errors.
+        await fetch('https://www.google.com/favicon.ico?_=' + new Date().getTime(), {
+          method: 'GET', // Standard GET is safest for no-cors
+          mode: 'no-cors',
+          cache: 'no-store',
+          signal: AbortSignal.timeout(4000) 
+        });
+        
+        // If the fetch resolves at all (even an opaque response), we have real internet!
+        setIsOnline(true);
+      } catch {
+        // If the fetch completely fails, the router lost outbound connection.
+        setIsOnline(false); 
+      }
+    }, 5000); // Ping every 10 seconds
+
     return () => {
-      window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(pingInterval);
     };
   }, []);
 
-  // Return the state so CheckoutModal.jsx and other components can use it
-  return { isOnline }; 
+  return isOnline;
 }

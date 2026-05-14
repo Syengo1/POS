@@ -25,7 +25,6 @@ export default function SalesTable({ sales }) {
         </thead>
         <tbody className="divide-y divide-neutral-800">
           {sales.map((sale) => {
-            // Calculate Row-Level Profit & Errors
             let receiptCost = 0;
             let hasError = false;
 
@@ -44,14 +43,12 @@ export default function SalesTable({ sales }) {
 
             return (
               <tr key={sale.id} className="hover:bg-neutral-800/30 transition-colors group">
-                {/* Date */}
                 <td className="p-4 text-sm text-neutral-400">
                   {new Date(sale.timestamp).toLocaleString('en-KE', { 
                     dateStyle: 'medium', timeStyle: 'short' 
                   })}
                 </td>
                 
-                {/* Receipt ID */}
                 <td className="p-4 text-xs text-neutral-500 font-mono uppercase">
                   {sale.id.split('-')[0]}
                   {hasError && (
@@ -61,10 +58,10 @@ export default function SalesTable({ sales }) {
                   )}
                 </td>
 
-                {/* Items Summarized */}
                 <td className="p-4">
                   <div className="flex flex-col gap-0.5">
-                    {sale.items && sale.items.length > 0 ? (
+                    {/* CRITICAL UI FIX: Ensure we never run .map() on a string */}
+                    {Array.isArray(sale.items) && sale.items.length > 0 ? (
                       sale.items.map((item, idx) => (
                         <span key={idx} className="text-xs text-neutral-300">
                           {item.qty}x {item.name}
@@ -76,7 +73,6 @@ export default function SalesTable({ sales }) {
                   </div>
                 </td>
 
-                {/* Payment Method */}
                 <td className="p-4 text-sm">
                   <div className="flex flex-col items-start gap-1">
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -92,14 +88,12 @@ export default function SalesTable({ sales }) {
                   </div>
                 </td>
 
-                {/* Revenue */}
                 <td className="p-4 text-right">
                   <p className="text-sm text-white font-bold font-mono">
                     {revenue.toLocaleString()}
                   </p>
                 </td>
 
-                {/* Profit/Margin Breakdown */}
                 <td className="p-4 text-right">
                   <div className="flex flex-col items-end gap-1">
                     <div className="flex items-center gap-1.5">

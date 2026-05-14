@@ -1,10 +1,12 @@
 // src/components/Header.jsx
 import { useState, useEffect } from 'react';
-import { Wifi, WifiOff, Clock } from 'lucide-react';
+import { Wifi, WifiOff, Clock, ShieldCheck, LogOut } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useStore } from '../store/useStore';
 
 export default function Header({ isOnline }) {
-  // Real-time clock for the cashier
   const [time, setTime] = useState(new Date());
+  const { currentUser, logout } = useStore();
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -12,65 +14,80 @@ export default function Header({ isOnline }) {
   }, []);
 
   return (
-    <header className="flex justify-between items-center h-16 md:h-20 px-4 md:px-6 bg-neutral-950 border-b border-neutral-800">
+    <header className="flex justify-between items-center h-16 md:h-20 px-3 md:px-6 bg-neutral-950 border-b border-neutral-800">
       
       {/* Left: Branding & Logo */}
-      <div className="flex items-center gap-3 md:gap-4">
-        {/* Logo Container */}
-        <div className="w-10 h-10 md:w-12 md:h-12 bg-neutral-900 rounded-full flex items-center justify-center border border-neutral-800 p-1.5 overflow-hidden shadow-sm">
-          {/* IMPORTANT: Ensure your SVG is in the 'public' folder and update this path if needed */}
-          <img 
-            src="/delicalogo.svg" 
-            alt="De' Lica Logo" 
-            className="w-full h-full object-contain" 
-          />
+      <div className="flex items-center gap-2 md:gap-4 shrink-0">
+        <div className="w-8 h-8 md:w-12 md:h-12 bg-neutral-900 rounded-full flex items-center justify-center border border-neutral-800 p-1 md:p-1.5 overflow-hidden shadow-sm">
+          <img src="/delicalogo.svg" alt="De' Lica Logo" className="w-full h-full object-contain" />
         </div>
-        
-        {/* Store Name */}
-        <div className="flex flex-col justify-center">
-          <h1 className="text-xl md:text-3xl font-black tracking-tight text-white uppercase">
-            De' Lica
-          </h1>
-          <p className="text-[10px] md:text-xs text-amber-500/80 font-mono tracking-widest uppercase">
-            Premium Liquor
-          </p>
+        <div>
+          {/* Shrunk text on mobile to save space */}
+          <h1 className="text-sm md:text-xl font-black text-white tracking-tight uppercase">De' Lica</h1>
+          <p className="hidden md:block text-xs text-neutral-500 font-mono tracking-widest uppercase">Point of Sale</p>
         </div>
       </div>
 
-      {/* Right: Cashier Utilities & Network Status */}
-      <div className="flex items-center gap-3 md:gap-6">
-        
-        {/* Live Clock (Hidden on very small mobile screens to save space) */}
-        <div className="hidden md:flex items-center gap-2 text-neutral-400 bg-neutral-900/50 px-4 py-2 rounded-lg border border-neutral-800/50">
+      {/* Right: Controls & Info */}
+      <div className="flex items-center gap-2 md:gap-3">
+
+        {/* 1. THE RESPONSIVE ADMIN BUTTON */}
+        {currentUser?.role === 'ADMIN' && (
+          <Link 
+            to="/admin" 
+            title="Admin Panel"
+            className="flex items-center justify-center gap-2 p-2 md:px-4 md:py-2.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500 hover:text-neutral-950 rounded-lg font-bold text-xs uppercase tracking-wider transition-all shadow-sm"
+          >
+            <ShieldCheck size={16} className="shrink-0" />
+            {/* Text hidden on mobile, visible on tablets/desktops */}
+            <span className="hidden md:block">Admin Panel</span>
+          </Link>
+        )}
+
+        {/* 2. Real-Time Clock (Hidden on Mobile) */}
+        <div className="hidden md:flex items-center gap-2 bg-neutral-900/50 px-4 py-2.5 rounded-lg border border-neutral-800/50">
           <Clock size={16} className="text-amber-500/70" />
-          <span className="font-mono text-sm font-medium">
+          <span className="font-mono text-sm font-medium text-neutral-300">
             {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
 
-        {/* Network Status Badge */}
-        <div className={`flex items-center gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-lg text-[10px] md:text-xs font-black tracking-widest uppercase transition-all duration-500 shadow-sm ${
+        {/* 3. Network Status Badge (Compact on Mobile) */}
+        <div className={`flex items-center justify-center gap-1.5 px-2 py-1.5 md:px-5 md:py-2.5 rounded-lg text-[9px] md:text-xs font-black tracking-widest uppercase transition-all duration-500 shadow-sm ${
           isOnline 
             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-emerald-500/5' 
             : 'bg-red-500/10 text-red-400 border border-red-500/20 shadow-red-500/5'
         }`}>
           {isOnline ? (
             <>
-              <Wifi size={16} className="animate-pulse hidden md:block" />
-              <span className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 md:hidden animate-pulse"></div>
-                ONLINE
-              </span>
+              <Wifi size={14} className="animate-pulse hidden md:block" />
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 md:hidden animate-pulse"></div>
+              <span className="hidden sm:block">ONLINE</span>
+              <span className="sm:hidden">ON</span>
             </>
           ) : (
             <>
-              <WifiOff size={16} className="hidden md:block" />
-              <span className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-red-500 md:hidden animate-pulse"></div>
-                OFFLINE
-              </span>
+              <WifiOff size={14} className="hidden md:block" />
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500 md:hidden"></div>
+              <span className="hidden sm:block">OFFLINE</span>
+              <span className="sm:hidden">OFF</span>
             </>
           )}
+        </div>
+
+        {/* 4. Active User & Lock Screen Button */}
+        <div className="flex items-center gap-2 md:gap-3 pl-2 md:pl-3 border-l border-neutral-800 ml-0.5 md:ml-1 shrink-0">
+          <div className="hidden md:block text-right">
+            <p className="text-xs font-bold text-white uppercase tracking-wider">{currentUser?.name || 'Staff'}</p>
+            <p className="text-[10px] text-neutral-500 font-mono tracking-widest">{currentUser?.role}</p>
+          </div>
+          <button 
+            onClick={logout} 
+            className="p-2 md:p-2.5 bg-neutral-900 border border-neutral-800 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30 text-neutral-400 rounded-lg transition-all" 
+            title="Lock POS"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
 
       </div>
