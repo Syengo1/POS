@@ -1,7 +1,7 @@
 // src/components/admin/AddSkuModal.jsx
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, PackagePlus, Plus, GlassWater, Beer, Sparkles, TrendingUp, TrendingDown, ChevronDown } from 'lucide-react';
+import { X, Save, PackagePlus, Plus, GlassWater, BottleWine, Sparkles, TrendingUp, TrendingDown, ChevronDown, PenLine } from 'lucide-react';
 import { getDB } from '../../core/db/database';
 
 export default function AddSkuModal({ isOpen, onClose, categories }) {
@@ -47,6 +47,7 @@ export default function AddSkuModal({ isOpen, onClose, categories }) {
     if (formData.unit_type === 'shot') return 'text-purple-400 bg-purple-500/10 border-purple-500/30';
     if (formData.unit_type === 'bowl') return 'text-rose-400 bg-rose-500/10 border-rose-500/30';
     if (formData.unit_type === 'pack') return 'text-blue-400 bg-blue-500/10 border-blue-500/30';
+    if (formData.unit_type === 'cig') return 'text-grey-400 bg-yellow-500/10 border-grey-500/30';
     return 'text-amber-500 bg-amber-500/10 border-amber-500/30';
   };
 
@@ -181,9 +182,10 @@ export default function AddSkuModal({ isOpen, onClose, categories }) {
                 <label className="block text-xs font-bold text-neutral-400 mb-3 uppercase tracking-wider">Inventory Type</label>
                 <div className="grid grid-cols-4 gap-2">
                   {[
-                    { id: 'bottle', icon: Beer, label: 'Bottle' },
+                    { id: 'bottle', icon: BottleWine, label: 'Bottle' },
                     { id: 'shot', icon: GlassWater, label: 'Shot' },
                     { id: 'pack', icon: PackagePlus, label: 'Pack' },
+                    { id: 'cig', icon: PenLine, label: 'Cig' },
                     { id: 'bowl', icon: Sparkles, label: 'Shisha' },
                   ].map(type => (
                     <button
