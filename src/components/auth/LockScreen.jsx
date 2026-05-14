@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Lock, Unlock, X, Download } from 'lucide-react';
 import { getDB } from '../../core/db/database';
 import { useStore } from '../../store/useStore';
@@ -11,14 +11,40 @@ export default function LockScreen() {
   
   const { isInstallable, installApp } = usePwaInstall();
 
-  const handleKeyPress = (num) => {
-    if (pin.length < 6) {
-      setPin(prev => prev + num);
-      setError(false);
-    }
-  };
+  // REFACTORED: We use useCallback and check 'prev.length' inside setPin
+  // This prevents React from locking stale state inside the keyboard listener.
+  const handleKeyPress = useCallback((num) => {
+    setPin(prev => {
+      if (prev.length < 6) {
+        setError(false);
+        return prev + num;
+      }
+      return prev;
+    });
+  }, []);
 
-  const handleBackspace = () => setPin(prev => prev.slice(0, -1));
+  const handleBackspace = useCallback(() => {
+    setPin(prev => prev.slice(0, -1));
+  }, []);
+
+  // NEW FEATURE: Global Keyboard Listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check if the key pressed is a number between 0 and 9
+      if (/^[0-9]$/.test(e.key)) {
+        handleKeyPress(Number(e.key));
+      } 
+      // Check if the key pressed is the Backspace key
+      else if (e.key === 'Backspace') {
+        handleBackspace();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    
+    // Cleanup listener when component unmounts
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyPress, handleBackspace]);
 
   useEffect(() => {
     let isCancelled = false; // Fast-typing guard
@@ -89,13 +115,13 @@ export default function LockScreen() {
       </div>
 
       {isInstallable && (
-        <div className="absolute bottom-8 left-6 flex justify-center">
+        <div className="absolute bottom-8 left-0 right-0 flex justify-center">
           <button 
             onClick={installApp}
             className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 hover:border-amber-500/50 text-neutral-400 hover:text-amber-500 px-6 py-3 rounded-full text-sm font-bold tracking-wider uppercase transition-all shadow-lg active:scale-95"
           >
             <Download size={16} />
-            Install App
+            Install App to Device
           </button>
         </div>
       )}
