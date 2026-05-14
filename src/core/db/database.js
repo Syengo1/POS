@@ -3,32 +3,22 @@ import { createRxDatabase, addRxPlugin, removeRxDatabase } from 'rxdb';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
-import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
+import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode'; 
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import { 
-  productSchema, 
-  saleSchema, 
-  categorySchema, 
-  promotionSchema, 
-  mpesaTransactionSchema, 
-  inventoryLedgerSchema, 
-  employeeSchema 
+  productSchema, saleSchema, categorySchema, promotionSchema, 
+  mpesaTransactionSchema, inventoryLedgerSchema, employeeSchema 
 } from './schema';
-
 import { startBackgroundSync } from './sync';
 
-if (import.meta.env.DEV) {
-  addRxPlugin(RxDBDevModePlugin);
-}
-
+// ALWAYS enable DevMode so Vercel consoles show REAL errors instead of cryptic codes
+addRxPlugin(RxDBDevModePlugin);
 addRxPlugin(RxDBUpdatePlugin);
 addRxPlugin(RxDBQueryBuilderPlugin);
 
 const createDB = async () => {
   console.log('Initializing RxDB Local Storage...');
-  
   try {
-    // ESLINT FIX: Declare it directly inside the try block
     const dbInstance = await createRxDatabase({
       name: 'pos_local_db',
       storage: wrappedValidateAjvStorage({
@@ -73,47 +63,50 @@ const createDB = async () => {
 
     startBackgroundSync(dbInstance);
 
+    // Clear the healing flag on success
+    sessionStorage.removeItem('db_healing');
+
     return dbInstance;
   } catch (err) {
     console.error("FATAL: Failed to initialize RxDB.", err);
-    // CRITICAL: We explicitly DO NOT try to call .destroy() here anymore. 
-    // Doing so on a corrupted instance locks it in the RAM. We let it throw!
     throw err; 
   }
 };
 
 // ============================================================================
-// SELF-HEALING SINGLETON PATTERN
+// GLOBAL SINGLETON & SAFE SELF-HEALING
 // ============================================================================
-let dbPromise = null;
-
 export const getDB = () => {
-  if (!dbPromise) {
-    dbPromise = (async () => {
+  // GLOBAL LOCK: Perfectly prevents DB9 concurrency across all React chunks
+  if (!window.__posDbPromise) {
+    window.__posDbPromise = (async () => {
       try {
         return await createDB();
-      } catch {
+      } catch (err) {
         console.warn("⚠️ FATAL DB ERROR DETECTED. INITIATING SELF-HEAL PROTOCOL...");
         
+        // CIRCUIT BREAKER: Prevents infinite refresh loops
+        if (sessionStorage.getItem('db_healing')) {
+          console.error("❌ Self-heal loop detected. Halting to prevent infinite refresh. See error above.", err);
+          sessionStorage.removeItem('db_healing');
+          throw err; 
+        }
+
+        sessionStorage.setItem('db_healing', 'true');
+
         try {
-          // 1. Wipe the corrupted local database from the hard drive
           await removeRxDatabase('pos_local_db', getRxStorageDexie());
           console.log("✅ Corrupted local storage wiped successfully.");
           
-          // 2. THE ULTIMATE FIX: Force a hard reload of the browser.
-          // This entirely flushes the RAM and destroys the "DB9 Ghost Instance".
           window.location.reload();
-          
-          // 3. Return a pending promise to permanently halt execution 
-          // while the browser handles the refresh.
-          return new Promise(() => {});
+          return new Promise(() => {}); // Halt execution while browser reloads
         } catch (recoveryErr) {
           console.error("❌ Self-Heal Failed.", recoveryErr);
-          dbPromise = null; 
+          window.__posDbPromise = null; 
           throw recoveryErr;
         }
       }
     })();
   }
-  return dbPromise;
+  return window.__posDbPromise;
 };
