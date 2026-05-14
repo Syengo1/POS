@@ -358,6 +358,9 @@ export default function CheckoutModal({ isCheckoutOpen, setIsCheckoutOpen, onCom
 
                 {(paymentMethod === 'MPESA' || paymentMethod === 'SPLIT') && (
                   <div className="space-y-4 mt-2">
+                    
+                    {/* --- STK PUSH UI TEMPORARILY COMMENTED OUT --- */}
+                    {/*
                     {isOnline && (
                       <div className="p-5 border border-emerald-500/20 bg-emerald-500/5 rounded-xl space-y-4 transition-all">
                         <div className="flex justify-between items-end">
@@ -379,7 +382,6 @@ export default function CheckoutModal({ isCheckoutOpen, setIsCheckoutOpen, onCom
                               }}
                               className="flex-1 bg-neutral-950 border border-emerald-500/30 text-white p-3 rounded-lg text-sm focus:border-emerald-500 outline-none font-mono tracking-widest transition-colors"
                             />
-                            {/* ESLINT FIX 3: Replaced undefined `isProcessing` with `transactionState === 'PROCESSING'` */}
                             <button 
                               onClick={handleStkPush}
                               disabled={transactionState === 'PROCESSING' || phoneNumber.length !== 10}
@@ -426,12 +428,15 @@ export default function CheckoutModal({ isCheckoutOpen, setIsCheckoutOpen, onCom
                         )}
                       </div>
                     )}
+                    */}
+                    {/* --- END OF COMMENTED STK PUSH UI --- */}
 
                     <div className={`p-5 border rounded-xl space-y-3 transition-colors ${stkStatus === 'COMPLETED' ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-neutral-800 bg-neutral-900/50'}`}>
                        <div>
                           <h4 className="text-white font-bold text-sm">M-Pesa Reference Code</h4>
                           <p className="text-neutral-500 text-xs mt-1">
-                            {!isOnline ? "System offline. Enter manually." : "Auto-fills or type manually."}
+                            {/* Adjusted text to make sense without the auto-fill feature active */}
+                            Enter the 10-character M-Pesa transaction code manually.
                           </p>
                        </div>
                       <input type="text" placeholder="e.g. RKT9X..." value={mpesaRef} onChange={handleMpesaRefChange} maxLength={10} className="w-full bg-neutral-950 border border-neutral-800 text-white p-4 rounded-xl font-mono text-xl uppercase outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-neutral-700" />
