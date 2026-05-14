@@ -26,11 +26,10 @@ addRxPlugin(RxDBQueryBuilderPlugin);
 
 const createDB = async () => {
   console.log('Initializing RxDB Local Storage...');
-  let dbInstance = null; // Track the instance so we can destroy it if it crashes
   
   try {
-    // Step 1: Create the instance in RAM
-    dbInstance = await createRxDatabase({
+    // ESLINT FIX: Declare it directly inside the try block
+    const dbInstance = await createRxDatabase({
       name: 'pos_local_db',
       storage: wrappedValidateAjvStorage({
         storage: getRxStorageDexie()
@@ -38,7 +37,6 @@ const createDB = async () => {
       ignoreDuplicate: true 
     });
 
-    // Step 2: Apply Schemas to Hard Drive (This is where outdated databases crash)
     await dbInstance.addCollections({
       categories: { schema: categorySchema },
       promotions: { schema: promotionSchema },
@@ -78,12 +76,8 @@ const createDB = async () => {
     return dbInstance;
   } catch (err) {
     console.error("FATAL: Failed to initialize RxDB.", err);
-    
-    // CRITICAL FIX: Destroy the RAM instance before throwing the error 
-    // so the Self-Heal protocol doesn't trigger a DB9 crash on retry.
-    if (dbInstance) {
-      try { await dbInstance.destroy(); } catch  { /* ignore cleanup errors */ }
-    }
+    // CRITICAL: We explicitly DO NOT try to call .destroy() here anymore. 
+    // Doing so on a corrupted instance locks it in the RAM. We let it throw!
     throw err; 
   }
 };
@@ -98,18 +92,23 @@ export const getDB = () => {
     dbPromise = (async () => {
       try {
         return await createDB();
-      } catch  {
+      } catch {
         console.warn("⚠️ FATAL DB ERROR DETECTED. INITIATING SELF-HEAL PROTOCOL...");
         
         try {
-          // 1. Wipe the corrupted/outdated local database completely from the hard drive
+          // 1. Wipe the corrupted local database from the hard drive
           await removeRxDatabase('pos_local_db', getRxStorageDexie());
           console.log("✅ Corrupted local storage wiped successfully.");
           
-          // 2. Try building it one more time from scratch
-          return await createDB();
+          // 2. THE ULTIMATE FIX: Force a hard reload of the browser.
+          // This entirely flushes the RAM and destroys the "DB9 Ghost Instance".
+          window.location.reload();
+          
+          // 3. Return a pending promise to permanently halt execution 
+          // while the browser handles the refresh.
+          return new Promise(() => {});
         } catch (recoveryErr) {
-          console.error("❌ Self-Heal Failed. Database is unrecoverable:", recoveryErr);
+          console.error("❌ Self-Heal Failed.", recoveryErr);
           dbPromise = null; 
           throw recoveryErr;
         }
