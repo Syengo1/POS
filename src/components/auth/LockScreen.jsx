@@ -95,7 +95,7 @@ export default function LockScreen() {
             className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 hover:border-amber-500/50 text-neutral-400 hover:text-amber-500 px-6 py-3 rounded-full text-sm font-bold tracking-wider uppercase transition-all shadow-lg active:scale-95"
           >
             <Download size={16} />
-            Install App to Device
+            Install App
           </button>
         </div>
       )}
